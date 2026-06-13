@@ -761,35 +761,31 @@ async function sauvegarder() {
     }
   }
 
-  // 3. Envoyer la photo via POST
+  // 3. Envoyer la photo via GET en chunks (CORS safe)
   if (selectedPhoto) {
     btn.textContent = 'Envoi photo...';
     try {
-      const sizeKB = Math.round(selectedPhoto.length * 0.75 / 1024);
-      showToast('📤 Envoi photo ' + sizeKB + ' KB...', 4000);
-      const r3 = await apiPost({
-        action: 'saisir_photo',
-        salarie: currentSalarie,
-        row: currentSaisieRow.row,
-        imageBase64: selectedPhoto,
-      });
-      if (!r3) {
-        showToast('❌ Photo : pas de réponse du serveur', 5000);
-        btn.disabled = false;
-        btn.textContent = 'Enregistrer dans Sheets';
-        return;
-      }
-      if (!r3.ok) {
-        showToast('❌ Photo erreur : ' + JSON.stringify(r3), 6000);
-        btn.disabled = false;
-        btn.textContent = 'Enregistrer dans Sheets';
-        return;
+      const CHUNK = 1500; // chars par chunk (URL max ~2000)
+      const total = Math.ceil(selectedPhoto.length / CHUNK);
+      // Envoyer chunk par chunk
+      for (let i = 0; i < total; i++) {
+        const chunk = selectedPhoto.substring(i * CHUNK, (i+1) * CHUNK);
+        showToast('📤 Photo ' + (i+1) + '/' + total + '...', 2000);
+        const r3 = await apiGet({
+          action: 'saisir_photo_chunk',
+          salarie: currentSalarie,
+          row: currentSaisieRow.row,
+          chunk: chunk,
+          idx: i,
+          total: total,
+        });
+        if (!r3 || !r3.ok) {
+          showToast('❌ Photo chunk ' + i + ' erreur: ' + (r3?.error||''), 5000);
+          break;
+        }
       }
     } catch(err) {
-      showToast('❌ Photo exception : ' + err.message, 6000);
-      btn.disabled = false;
-      btn.textContent = 'Enregistrer dans Sheets';
-      return;
+      showToast('❌ Photo : ' + err.message, 5000);
     }
   }
 
