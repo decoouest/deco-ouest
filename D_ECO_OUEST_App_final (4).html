@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1565C0">
+<title>D ECO OUEST — Pointage</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue:   #1565C0; --blue-l: #E3F2FD; --blue-d: #0D47A1;
+  --green:  #2E7D32; --green-l: #E8F5E9;
+  --red:    #C62828; --red-l:   #FFEBEE;
+  --amber:  #E65100; --amber-l: #FFF3E0;
+  --gray:   #546E7A; --gray-l:  #ECEFF1;
+  --white:  #FFFFFF; --bg: #F5F7FA;
+  --text:   #1A237E; --text2: #546E7A;
+  --radius: 12px; --shadow: 0 2px 12px rgba(0,0,0,.1);
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: #263238; min-height: 100vh; }
+
+/* NAV */
+nav { background: var(--blue); color: white; padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.nav-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; }
+.nav-title { font-size: 17px; font-weight: 600; letter-spacing: .3px; }
+.nav-status { font-size: 11px; opacity: .75; }
+.nav-tabs { display: flex; border-top: 1px solid rgba(255,255,255,.2); }
+.tab-btn { flex: 1; padding: 10px 4px; background: none; border: none; color: rgba(255,255,255,.7); font-size: 11px; font-weight: 500; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.tab-btn.active { color: white; border-bottom: 2px solid white; }
+.tab-btn i { font-size: 18px; }
+
+/* CONTENT */
+main { padding: 16px; max-width: 600px; margin: 0 auto; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* CARDS */
+.card { background: white; border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+.card-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 12px; }
+
+/* SOLDE CARDS */
+.solde-card { border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+.solde-card.positif { background: var(--green-l); border-left: 4px solid var(--green); }
+.solde-card.negatif { background: var(--red-l);   border-left: 4px solid var(--red); }
+.solde-nom { font-size: 18px; font-weight: 700; color: #263238; }
+.solde-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
+.solde-badge.positif { background: var(--green); color: white; }
+.solde-badge.negatif { background: var(--red);   color: white; }
+.solde-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+.solde-item { text-align: center; background: rgba(255,255,255,.7); border-radius: 8px; padding: 8px 4px; }
+.solde-item-label { font-size: 10px; color: var(--text2); margin-bottom: 3px; }
+.solde-item-val { font-size: 16px; font-weight: 700; }
+.solde-item-val.positif { color: var(--green); }
+.solde-item-val.negatif { color: var(--red); }
+.solde-item-val.neutral  { color: var(--blue); }
+
+/* SEMAINE */
+.jour-row { display: flex; align-items: center; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: all .2s; position: relative; }
+.jour-row:hover, .jour-row:active { transform: scale(.99); }
+.jour-row.travaille { background: var(--blue-l); }
+.jour-row.weekend   { background: var(--gray-l); opacity: .7; }
+.jour-row.conge     { background: #E8F5E9; }
+.jour-row.absent    { background: var(--red-l); }
+.jour-row.rtt       { background: #F3E5F5; }
+.jour-row.ferie     { background: #FFF9C4; }
+.jour-row.today     { border: 2px solid var(--blue); box-shadow: 0 0 0 3px rgba(21,101,192,.15); }
+.jour-date { width: 42px; font-size: 12px; font-weight: 600; color: var(--text2); }
+.jour-nom  { width: 36px; font-size: 12px; color: var(--text2); }
+.jour-type { flex: 1; font-size: 13px; font-weight: 500; }
+.jour-heures { font-size: 13px; font-weight: 700; color: var(--blue); }
+.jour-ecart  { font-size: 11px; margin-left: 8px; font-weight: 600; }
+.jour-ecart.pos { color: var(--green); }
+.jour-ecart.neg { color: var(--red); }
+.today-badge { position: absolute; top: -6px; right: 8px; background: var(--blue); color: white; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+
+/* SAISIE FORM */
+.saisie-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.saisie-date { font-size: 14px; font-weight: 600; }
+.saisie-back { background: var(--gray-l); border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text2); }
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--text2); display: block; margin-bottom: 6px; }
+.form-input { width: 100%; padding: 12px; border: 2px solid #E0E0E0; border-radius: 10px; font-size: 16px; transition: border-color .2s; }
+.form-input:focus { outline: none; border-color: var(--blue); }
+.type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.type-btn { padding: 10px 8px; border: 2px solid #E0E0E0; border-radius: 10px; background: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .2s; text-align: center; }
+.type-btn.selected { border-color: var(--blue); background: var(--blue-l); color: var(--blue); }
+.time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn-save { width: 100%; padding: 14px; background: var(--blue); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background .2s; }
+.btn-save:hover { background: var(--blue-d); }
+.btn-save:disabled { opacity: .5; cursor: not-allowed; }
+
+/* RECAP TABLE */
+.recap-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.recap-table th { background: var(--blue); color: white; padding: 8px 6px; text-align: center; font-weight: 600; font-size: 11px; }
+.recap-table td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #F0F0F0; }
+.recap-table tr:last-child td { font-weight: 700; background: var(--blue-l); }
+.recap-table tr:hover td { background: #F8F9FA; }
+td.neg { color: var(--red); font-weight: 600; }
+td.pos { color: var(--green); font-weight: 600; }
+
+/* PICKER SALARIE */
+.sal-picker { display: flex; gap: 8px; margin-bottom: 16px; }
+.sal-btn { flex: 1; padding: 10px; border: 2px solid #E0E0E0; border-radius: 10px; background: white; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .2s; }
+.sal-btn.anatole.active { border-color: #1565C0; background: #E3F2FD; color: #1565C0; }
+.sal-btn.artiom.active  { border-color: #283593; background: #E8EAF6; color: #283593; }
+.sal-btn.antonio.active { border-color: #2E7D32; background: #E8F5E9; color: #2E7D32; }
+
+/* ALERTES */
+.alerte { padding: 12px 14px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid; }
+.alerte.warning { background: var(--amber-l); border-color: var(--amber); color: var(--amber); }
+.alerte.danger  { background: var(--red-l);   border-color: var(--red);   color: var(--red); }
+.alerte.info    { background: var(--blue-l);  border-color: var(--blue);  color: var(--blue); }
+
+/* LOADER */
+.loader { display: flex; align-items: center; justify-content: center; padding: 40px; flex-direction: column; gap: 12px; }
+.spinner { width: 36px; height: 36px; border: 3px solid #E0E0E0; border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { color: var(--text2); font-size: 13px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: #263238; color: white; padding: 12px 20px; border-radius: 24px; font-size: 14px; font-weight: 500; z-index: 999; transition: transform .3s; box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* CONFIG */
+.config-input { width: 100%; padding: 12px; border: 2px solid #E0E0E0; border-radius: 10px; font-size: 13px; font-family: monospace; }
+.config-hint { font-size: 11px; color: var(--text2); margin-top: 6px; line-height: 1.5; }
+.btn-config { padding: 10px 20px; background: var(--blue); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; margin-top: 10px; }
+
+/* REFRESH BTN */
+.btn-refresh { background: var(--blue-l); border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; color: var(--blue); font-size: 13px; font-weight: 600; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 30px 16px; color: var(--text2); font-size: 14px; }
+
+/* NAVIGATION SEMAINE */
+.week-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: white; border-radius: var(--radius); padding: 10px 14px; box-shadow: var(--shadow); }
+.week-nav-btn { background: var(--blue-l); border: none; border-radius: 8px; width: 36px; height: 36px; font-size: 18px; cursor: pointer; color: var(--blue); font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.week-nav-btn:active { background: var(--blue); color: white; }
+.week-nav-btn.today-btn { width: auto; padding: 0 12px; font-size: 12px; font-weight: 700; }
+.week-label { text-align: center; flex: 1; }
+.week-label-main { font-size: 14px; font-weight: 700; color: var(--text); }
+.week-label-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.date-picker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.date-picker-input { flex: 1; padding: 10px 12px; border: 2px solid #E0E0E0; border-radius: 10px; font-size: 14px; background: white; }
+.date-picker-input:focus { outline: none; border-color: var(--blue); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-top">
+    <div>
+      <div class="nav-title">🏗 D ECO OUEST</div>
+      <div class="nav-status" id="nav-status">Non connecté</div>
+    </div>
+    <button class="btn-refresh" onclick="refreshAll()" title="Actualiser">↻ Sync</button>
+  </div>
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="goTab('solde',this)">
+      <i>📊</i>Solde
+    </button>
+    <button class="tab-btn" onclick="goTab('semaine',this)">
+      <i>📅</i>Semaine
+    </button>
+    <button class="tab-btn" onclick="goTab('recap',this)">
+      <i>📋</i>Récap
+    </button>
+    <button class="tab-btn" onclick="goTab('config',this)">
+      <i>⚙️</i>Config
+    </button>
+  </div>
+</nav>
+
+<main>
+
+<!-- PAGE SOLDE -->
+<div id="page-solde" class="page active">
+  <div id="solde-content">
+    <div class="loader"><div class="spinner"></div><div class="loader-text">Chargement...</div></div>
+  </div>
+</div>
+
+<!-- PAGE SEMAINE -->
+<div id="page-semaine" class="page">
+  <div class="sal-picker">
+    <button class="sal-btn anatole active" onclick="setSalarie('ANATOLE',this)">Anatole</button>
+    <button class="sal-btn artiom"  onclick="setSalarie('ARTIOM',this)">Artiom</button>
+    <button class="sal-btn antonio" onclick="setSalarie('ANTONIO',this)">Antonio</button>
+  </div>
+
+  <!-- Navigation semaine -->
+  <div class="week-nav">
+    <button class="week-nav-btn" onclick="changeWeek(-1)">‹</button>
+    <div class="week-label">
+      <div class="week-label-main" id="week-label-main">Semaine en cours</div>
+      <div class="week-label-sub" id="week-label-sub"></div>
+    </div>
+    <button class="week-nav-btn" onclick="changeWeek(1)">›</button>
+  </div>
+
+  <!-- Sélecteur de date -->
+  <div class="date-picker-row">
+    <input type="date" class="date-picker-input" id="week-date-picker" onchange="goToDate(this.value)">
+    <button class="week-nav-btn today-btn" onclick="goToToday()">Auj.</button>
+  </div>
+
+  <div id="semaine-content">
+    <div class="loader"><div class="spinner"></div><div class="loader-text">Chargement...</div></div>
+  </div>
+  <!-- SOUS-PAGE SAISIE -->
+  <div id="saisie-page" style="display:none">
+    <div class="card">
+      <div class="saisie-header">
+        <button class="saisie-back" onclick="hideSaisie()">← Retour</button>
+        <div>
+          <div class="saisie-date" id="saisie-date-label"></div>
+          <div style="font-size:11px;color:var(--text2)" id="saisie-sal-label"></div>
+        </div>
+      </div>
+
+      <!-- Type de journée -->
+      <div class="form-group">
+        <label class="form-label">Type de journée</label>
+        <div class="type-grid">
+          <button class="type-btn" onclick="selectType('Jour Travaillé')">✅ Jour Travaillé</button>
+          <button class="type-btn" onclick="selectType('CONGE')">🏖 Congé</button>
+          <button class="type-btn" onclick="selectType('RTT')">📆 RTT</button>
+          <button class="type-btn" onclick="selectType('ABSENT')">❌ Absent</button>
+          <button class="type-btn" onclick="selectType('JOUR FERIE non travaillé')">🎉 Jour Férié</button>
+          <button class="type-btn" onclick="selectType('ARRET TRAVAIL MALADIE')">🏥 Arrêt Maladie</button>
+        </div>
+      </div>
+
+      <!-- Heure de fin uniquement (les autres sont déjà dans Sheets) -->
+      <div id="heures-form" style="display:none">
+        <div class="form-group">
+          <label class="form-label">🕐 Heure de fin de journée</label>
+          <input class="form-input" type="time" id="f-fin" value="16:00" style="font-size:22px;padding:14px;text-align:center;font-weight:700">
+        </div>
+      </div>
+
+      <!-- Photo Reolink col K -->
+      <div id="photo-form" style="display:none;margin-top:4px">
+        <label class="form-label">📷 Photo Reolink (colonne K)</label>
+        <div id="photo-preview" style="display:none;margin-bottom:10px;text-align:center">
+          <img id="photo-img" style="max-width:100%;border-radius:10px;max-height:180px;object-fit:cover">
+          <div style="font-size:11px;color:var(--text2);margin-top:4px" id="photo-name"></div>
+        </div>
+        <label style="display:flex;align-items:center;justify-content:center;gap:10px;background:var(--gray-l);border:2px dashed #B0BEC5;border-radius:10px;padding:16px;cursor:pointer;font-size:14px;color:var(--text2)">
+          <span style="font-size:24px">📷</span>
+          <span id="photo-label">Prendre une photo ou choisir</span>
+          <input type="file" id="f-photo" accept="image/*" onchange="previewPhoto(this)" style="display:none">
+        </label>
+      </div>
+
+      <button class="btn-save" id="btn-save" onclick="sauvegarder()" disabled>Enregistrer dans Sheets</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE RECAP -->
+<div id="page-recap" class="page">
+  <div class="sal-picker">
+    <button class="sal-btn anatole active" onclick="setRecapSal('ANATOLE',this)">Anatole</button>
+    <button class="sal-btn artiom"         onclick="setRecapSal('ARTIOM',this)">Artiom</button>
+    <button class="sal-btn antonio"        onclick="setRecapSal('ANTONIO',this)">Antonio</button>
+  </div>
+  <div id="recap-content">
+    <div class="loader"><div class="spinner"></div><div class="loader-text">Chargement...</div></div>
+  </div>
+</div>
+
+<!-- PAGE CONFIG -->
+<div id="page-config" class="page">
+  <div class="card">
+    <div class="card-title">🔗 Connexion Google Sheets</div>
+    <div class="form-group">
+      <label class="form-label">URL du déploiement Apps Script</label>
+      <textarea class="config-input" id="api-url" rows="3" placeholder="https://script.google.com/macros/s/AKfy.../exec"></textarea>
+      <div class="config-hint">
+        1. Ouvrir le Google Sheets 2026<br>
+        2. Extensions → Apps Script<br>
+        3. Coller le code Apps_Script_API.gs<br>
+        4. Déployer → Nouvelle déploiement → Application Web<br>
+        5. Accès : <strong>Toute personne</strong><br>
+        6. Copier l'URL ici
+      </div>
+    </div>
+    <button class="btn-config" onclick="saveConfig()">✅ Sauvegarder & Tester</button>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">ℹ️ À propos</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8">
+      Application de pointage D ECO OUEST<br>
+      Synchronisée avec Google Sheets 2026<br>
+      <strong>ID Sheets :</strong> 1ZdpDEnQ...S6cg<br>
+      Fonctionne hors ligne (lecture seule)
+    </div>
+  </div>
+</div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────
+let API_URL = 'https://script.google.com/macros/s/AKfycbz5xiRvR1HJZaPKtb-MBD5chdRCpBYr3rdzbB3OPFIULAcU4hwFZ6O_48qG6BYELlsaZQ/exec';
+const CACHE = {};
+let currentSalarie = 'ANATOLE';
+let currentRecapSal = 'ANATOLE';
+let currentSaisieRow = null;
+let selectedType = null;
+let selectedPhoto = null;
+let currentWeekOffset = 0; // 0 = semaine en cours, -1 = semaine précédente, etc.
+
+document.getElementById('api-url').value = API_URL;
+
+// ── NAVIGATION ────────────────────────────────────────────────
+function goTab(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'solde')   loadSolde();
+  if (name === 'semaine') loadSemaine(currentSalarie);
+  if (name === 'recap')   loadRecap(currentRecapSal);
+}
+
+function setSalarie(nom, btn) {
+  currentSalarie = nom;
+  document.querySelectorAll('#page-semaine .sal-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  hideSaisie();
+  loadSemaine(nom);
+}
+
+function changeWeek(delta) {
+  currentWeekOffset += delta;
+  loadSemaine(currentSalarie);
+}
+
+function goToToday() {
+  currentWeekOffset = 0;
+  loadSemaine(currentSalarie);
+}
+
+function goToDate(dateStr) {
+  if (!dateStr) return;
+  const selected = new Date(dateStr);
+  const today = new Date(); today.setHours(0,0,0,0);
+  // Calculer le lundi de la semaine sélectionnée
+  const lundiSelected = new Date(selected);
+  lundiSelected.setDate(selected.getDate() - ((selected.getDay()+6)%7));
+  const lundiToday = new Date(today);
+  lundiToday.setDate(today.getDate() - ((today.getDay()+6)%7));
+  // Offset en semaines
+  const diffMs = lundiSelected - lundiToday;
+  currentWeekOffset = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+  loadSemaine(currentSalarie);
+}
+
+function updateWeekLabel() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const lundi = new Date(today);
+  lundi.setDate(today.getDate() - ((today.getDay()+6)%7) + currentWeekOffset * 7);
+  const vendredi = new Date(lundi); vendredi.setDate(lundi.getDate()+4);
+
+  const fmt = d => d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'});
+  const main = currentWeekOffset === 0 ? 'Semaine en cours'
+             : currentWeekOffset === -1 ? 'Semaine dernière'
+             : currentWeekOffset === 1  ? 'Semaine prochaine'
+             : 'Semaine ' + (currentWeekOffset > 0 ? '+' : '') + currentWeekOffset;
+
+  document.getElementById('week-label-main').textContent = main;
+  document.getElementById('week-label-sub').textContent = fmt(lundi) + ' → ' + fmt(vendredi);
+
+  // Mettre à jour le date picker sur le lundi
+  const pad = n => String(n).padStart(2,'0');
+  const iso = lundi.getFullYear() + '-' + pad(lundi.getMonth()+1) + '-' + pad(lundi.getDate());
+  document.getElementById('week-date-picker').value = iso;
+}
+
+function setRecapSal(nom, btn) {
+  currentRecapSal = nom;
+  document.querySelectorAll('#page-recap .sal-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadRecap(nom);
+}
+
+// ── API ───────────────────────────────────────────────────────
+async function apiGet(params) {
+  if (!API_URL) return null;
+  const url = API_URL + '?' + new URLSearchParams(params);
+  try {
+    const r = await fetch(url);
+    return await r.json();
+  } catch(e) {
+    return { error: e.message };
+  }
+}
+
+async function apiPost(body) {
+  if (!API_URL) return null;
+  try {
+    const r = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return await r.json();
+  } catch(e) {
+    return { error: e.message };
+  }
+}
+
+// ── SOLDE GLOBAL ──────────────────────────────────────────────
+async function loadSolde() {
+  const el = document.getElementById('solde-content');
+  if (!API_URL) {
+    el.innerHTML = '<div class="card"><div class="empty">⚙️ Configurez d\'abord l\'URL Apps Script dans l\'onglet Config</div></div>';
+    return;
+  }
+  el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Lecture du Sheets...</div></div>';
+  const data = await apiGet({ action: 'solde' });
+  if (!data || data.error) {
+    el.innerHTML = `<div class="alerte danger">❌ Erreur : ${data?.error || 'Impossible de contacter Sheets'}</div>`;
+    return;
+  }
+
+  const alertes = buildAlertes(data.salaries);
+  let html = '';
+
+  if (alertes.length) {
+    html += alertes.map(a => `<div class="alerte ${a.type}">⚠️ ${a.msg}</div>`).join('');
+  }
+
+  for (const s of data.salaries) {
+    html += `
+    <div class="solde-card ${s.positif ? 'positif' : 'negatif'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="solde-nom">${s.nom}</span>
+        <span class="solde-badge ${s.positif ? 'positif' : 'negatif'}">${s.statut}</span>
+      </div>
+      <div class="solde-grid">
+        <div class="solde-item">
+          <div class="solde-item-label">Net 2026</div>
+          <div class="solde-item-val ${parseFloat(s.net2026) >= 0 ? 'positif' : 'negatif'}">${s.net2026}</div>
+        </div>
+        <div class="solde-item">
+          <div class="solde-item-label">Report 2025</div>
+          <div class="solde-item-val neutral">${s.report}</div>
+        </div>
+        <div class="solde-item">
+          <div class="solde-item-label">Solde final</div>
+          <div class="solde-item-val ${s.positif ? 'positif' : 'negatif'}">${s.solde}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text2);display:flex;justify-content:space-between">
+        <span>📅 Mois en cours : <strong>${s.mois}</strong></span>
+        <span>${s.jours}</span>
+      </div>
+    </div>`;
+  }
+
+  const d = new Date(data.timestamp);
+  html += `<div style="text-align:center;font-size:11px;color:var(--text2);margin-top:8px">
+    Dernière sync : ${d.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}
+  </div>`;
+
+  el.innerHTML = html;
+  setStatus('Connecté · ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}));
+  CACHE.solde = data;
+}
+
+function buildAlertes(salaries) {
+  const alertes = [];
+  for (const s of salaries) {
+    const parts = s.solde.replace('-','').split(':');
+    const min = parseInt(parts[0])*60 + parseInt(parts[1]||0);
+    const neg = s.solde.startsWith('-');
+    if (neg && min > 20*60) {
+      alertes.push({ type: 'danger', msg: `${s.nom} : ${s.solde} d'heures dues — à régulariser` });
+    }
+  }
+  return alertes;
+}
+
+// ── SEMAINE ───────────────────────────────────────────────────
+async function loadSemaine(sal) {
+  const el = document.getElementById('semaine-content');
+  hideSaisie();
+  if (!API_URL) {
+    el.innerHTML = '<div class="empty">⚙️ Configurez l\'URL Apps Script</div>';
+    return;
+  }
+  el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Chargement semaine...</div></div>';
+
+  updateWeekLabel();
+    const data = await apiGet({ action: 'semaine', salarie: sal, offset: currentWeekOffset });
+  if (!data || data.error) {
+    el.innerHTML = `<div class="alerte danger">❌ ${data?.error || 'Erreur'}</div>`;
+    return;
+  }
+
+  if (!data.semaine || data.semaine.length === 0) {
+    el.innerHTML = '<div class="empty">📅 Aucune donnée pour cette semaine</div>';
+    return;
+  }
+
+  CACHE['semaine_' + sal] = data;
+  renderSemaine(data.semaine);
+}
+
+function renderSemaine(jours) {
+  const el = document.getElementById('semaine-content');
+
+  // Calculer totaux semaine depuis les valeurs affichées
+  function parseDisplayDuration(str) {
+    if (!str || str === '' || str === '0:00') return 0;
+    const neg = str.startsWith('-');
+    const clean = str.replace('-','');
+    const parts = clean.split(':');
+    const min = parseInt(parts[0]||0)*60 + parseInt(parts[1]||0);
+    return neg ? -min : min;
+  }
+  function minsToStr(mins) {
+    const neg = mins < 0;
+    const abs = Math.abs(mins);
+    const h = Math.floor(abs/60);
+    const m = abs%60;
+    return (neg?'-':'') + h + ':' + String(m).padStart(2,'0');
+  }
+
+  let totalTravMin = 0;
+  let totalEcartMin = 0;
+  let totalMajMin = 0;
+  const BASE_SEMAINE = 35; // h
+  let joursComptes = 0;
+
+  for (const j of jours) {
+    const type = j.type || '';
+    const isTravaille = type === 'Jour Travaillé' || type === 'journee solidarité travaillé';
+    if (isTravaille && j.travaille) {
+      totalTravMin += parseDisplayDuration(j.travaille);
+      joursComptes++;
+    }
+    if (isTravaille && j.ecart) {
+      totalEcartMin += parseDisplayDuration(j.ecart);
+    }
+  }
+  // Maj 25% = max(total - 35h, 0) * 1.25
+  const basMin = BASE_SEMAINE * 60;
+  const excessMin = totalTravMin - basMin;
+  totalMajMin = excessMin > 0 ? Math.round(excessMin * 1.25) : 0;
+
+  let html = '<div class="card"><div class="card-title">Cette semaine — cliquez pour saisir</div>';
+  for (const j of jours) {
+    const type = j.type || '';
+    const typeClass = typeToClass(type);
+    const isTravaille = type === 'Jour Travaillé' || type === 'journee solidarité travaillé';
+    html += `
+    <div class="jour-row ${typeClass} ${j.isToday ? 'today' : ''}" onclick="openSaisie(${JSON.stringify(j).replace(/\"/g,'&quot;')})">
+      ${j.isToday ? '<span class="today-badge">AUJOURD\'HUI</span>' : ''}
+      <div class="jour-date">${j.date}</div>
+      <div class="jour-nom">${j.jour}</div>
+      <div class="jour-type">${typeLabel(type)}</div>
+      ${isTravaille && j.travaille && j.travaille !== '0:00' ? `<div class="jour-heures">${j.travaille}</div>` : ''}
+      ${isTravaille && j.ecart && j.ecart !== '0:00' ? `<div class="jour-ecart ${j.ecart.startsWith('-') ? 'neg' : 'pos'}">${j.ecart}</div>` : ''}
+    </div>`;
+  }
+
+  // Bandeau total semaine
+  if (joursComptes > 0) {
+    const ecartClass = totalEcartMin >= 0 ? 'pos' : 'neg';
+    html += `
+    <div style="margin-top:12px;background:var(--blue-l);border-radius:10px;padding:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Total semaine</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="text-align:center;background:white;border-radius:8px;padding:8px">
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">H. effectuées</div>
+          <div style="font-size:17px;font-weight:700;color:var(--blue)">${minsToStr(totalTravMin)}</div>
+        </div>
+        <div style="text-align:center;background:white;border-radius:8px;padding:8px">
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">Écart / 35h</div>
+          <div style="font-size:17px;font-weight:700;color:${totalEcartMin>=0?'var(--green)':'var(--red)'}">${minsToStr(totalEcartMin)}</div>
+        </div>
+        <div style="text-align:center;background:white;border-radius:8px;padding:8px">
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">Maj. 25%</div>
+          <div style="font-size:17px;font-weight:700;color:${totalMajMin>0?'var(--green)':'var(--text2)'}">${minsToStr(totalMajMin)}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function typeToClass(type) {
+  if (!type || type === 'Jour Travaillé' || type === 'journee solidarité travaillé') return 'travaille';
+  if (type === 'week end') return 'weekend';
+  if (type === 'CONGE') return 'conge';
+  if (type === 'ABSENT' || type === 'ARRET TRAVAIL MALADIE') return 'absent';
+  if (type === 'RTT') return 'rtt';
+  if (type === 'JOUR FERIE non travaillé') return 'ferie';
+  return 'travaille';
+}
+
+function typeLabel(type) {
+  const labels = {
+    'Jour Travaillé': '✅ Jour Travaillé',
+    'journee solidarité travaillé': '🤝 Solidarité',
+    'week end': '🏠 Week-end',
+    'CONGE': '🏖 Congé',
+    'ABSENT': '❌ Absent',
+    'RTT': '📆 RTT',
+    'JOUR FERIE non travaillé': '🎉 Jour Férié',
+    'ARRET TRAVAIL MALADIE': '🏥 Arrêt maladie',
+    '': '— Non renseigné',
+  };
+  return labels[type] || type;
+}
+
+// ── SAISIE ────────────────────────────────────────────────────
+function openSaisie(jour) {
+  if (jour.jour === 'sam' || jour.jour === 'dim') return;
+  currentSaisieRow = jour;
+  selectedType = null;
+
+  document.getElementById('saisie-date-label').textContent = jour.date + ' · ' + jour.jour;
+  document.getElementById('saisie-sal-label').textContent = currentSalarie;
+
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+
+  // Pré-remplir si données existantes
+  if (jour.type) {
+    selectedType = jour.type;
+    document.querySelectorAll('.type-btn').forEach(b => {
+      if (b.textContent.includes(jour.type) || b.onclick.toString().includes("'" + jour.type + "'")) {
+        b.classList.add('selected');
+      }
+    });
+  }
+
+  // Pré-remplir heure de fin si déjà saisie
+  if (jour.fin && jour.fin !== '00:00' && jour.fin !== '') {
+    document.getElementById('f-fin').value = jour.fin;
+  } else {
+    document.getElementById('f-fin').value = '16:00';
+  }
+
+  // Réinitialiser photo
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('f-photo').value = '';
+  document.getElementById('photo-label').textContent = 'Prendre une photo ou choisir';
+  selectedPhoto = null;
+
+  const isTrav = jour.type === 'Jour Travaillé' || jour.type === 'journee solidarité travaillé';
+  document.getElementById('heures-form').style.display = isTrav ? 'block' : 'none';
+  document.getElementById('photo-form').style.display = isTrav ? 'block' : 'none';
+  document.getElementById('btn-save').disabled = !selectedType;
+
+  document.getElementById('semaine-content').style.display = 'none';
+  document.getElementById('saisie-page').style.display = 'block';
+}
+
+function hideSaisie() {
+  document.getElementById('saisie-page').style.display = 'none';
+  document.getElementById('semaine-content').style.display = 'block';
+  currentSaisieRow = null;
+  selectedType = null;
+  selectedPhoto = null;
+}
+
+function previewPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    // Compresser l'image via canvas avant envoi
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      // Limiter à 800px max pour réduire la taille
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      // Qualité 0.7 = bonne qualité, taille réduite
+      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      
+      // Afficher aperçu
+      document.getElementById('photo-img').src = compressed;
+      document.getElementById('photo-preview').style.display = 'block';
+      document.getElementById('photo-name').textContent = file.name + ' (compressée)';
+      document.getElementById('photo-label').textContent = '✅ Photo sélectionnée';
+      // Stocker base64 compressé
+      selectedPhoto = compressed.split(',')[1];
+      
+      const sizeKB = Math.round(selectedPhoto.length * 0.75 / 1024);
+      document.getElementById('photo-name').textContent = file.name + ' · ' + sizeKB + ' KB';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function selectType(type) {
+  selectedType = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+  event.target.classList.add('selected');
+  const isTrav = type === 'Jour Travaillé' || type === 'journee solidarité travaillé';
+  document.getElementById('heures-form').style.display = isTrav ? 'block' : 'none';
+  document.getElementById('photo-form').style.display = isTrav ? 'block' : 'none';
+  document.getElementById('btn-save').disabled = false;
+}
+
+async function sauvegarder() {
+  if (!currentSaisieRow || !selectedType) return;
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.textContent = 'Enregistrement...';
+
+  // 1. Sauvegarder le type via GET (évite CORS)
+  const r1 = await apiGet({
+    action: 'saisir_type',
+    salarie: currentSalarie,
+    row: currentSaisieRow.row,
+    type: selectedType,
+  });
+
+  // 2. Sauvegarder heure de fin via GET
+  const isTrav = selectedType === 'Jour Travaillé' || selectedType === 'journee solidarité travaillé';
+  if (isTrav) {
+    const fin = document.getElementById('f-fin').value;
+    if (fin) {
+      await apiGet({
+        action: 'saisir_fin',
+        salarie: currentSalarie,
+        row: currentSaisieRow.row,
+        fin: fin,
+      });
+    }
+  }
+
+  // 3. Envoyer la photo si présente (via GET avec base64 tronqué si trop grand)
+  if (selectedPhoto) {
+    btn.textContent = 'Envoi photo...';
+    // Découper en chunks de 50000 chars si nécessaire
+    const chunk = selectedPhoto.substring(0, 50000);
+    await apiGet({
+      action: 'saisir_photo',
+      salarie: currentSalarie,
+      row: currentSaisieRow.row,
+      imageBase64: chunk,
+    });
+  }
+
+  if (r1 && r1.ok) {
+    showToast('✅ Enregistré dans Google Sheets !');
+    hideSaisie();
+    loadSemaine(currentSalarie);
+  } else {
+    showToast('❌ Erreur : ' + (r1?.error || 'Échec'));
+    btn.disabled = false;
+    btn.textContent = 'Enregistrer dans Sheets';
+  }
+}
+
+// ── RECAP ─────────────────────────────────────────────────────
+async function loadRecap(sal) {
+  const el = document.getElementById('recap-content');
+  if (!API_URL) {
+    el.innerHTML = '<div class="empty">⚙️ Configurez l\'URL Apps Script</div>';
+    return;
+  }
+  el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Chargement...</div></div>';
+
+  const data = await apiGet({ action: 'recap', salarie: sal });
+  if (!data || data.error) {
+    el.innerHTML = `<div class="alerte danger">❌ ${data?.error || 'Erreur'}</div>`;
+    return;
+  }
+
+  const isAntonio = sal === 'ANTONIO';
+  let html = '<div class="card" style="overflow-x:auto">';
+  html += '<table class="recap-table"><thead><tr>';
+
+  if (!isAntonio) {
+    html += '<th>Mois</th><th>H.Sup Maj.</th><th>J.RTT</th><th>J.Abs</th><th>Net</th><th>Congés</th>';
+  } else {
+    html += '<th>Mois</th><th>J.Abs</th><th>H.Abs</th><th>Net</th><th>Congés</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  for (const m of data.mois) {
+    const netNeg = m.net && m.net.startsWith('-');
+    const hasData = m.net && m.net !== '0:00';
+    html += `<tr style="${!hasData ? 'opacity:.4' : ''}">`;
+    if (!isAntonio) {
+      html += `<td><strong>${m.mois}</strong></td>
+        <td>${m.hSupMaj || '—'}</td>
+        <td>${m.jRtt > 0 ? m.jRtt + 'j' : '—'}</td>
+        <td>${m.jAbsent > 0 ? m.jAbsent + 'j' : '—'}</td>
+        <td class="${netNeg ? 'neg' : 'pos'}">${m.net}</td>
+        <td>${m.conges > 0 ? m.conges + 'j' : '—'}</td>`;
+    } else {
+      html += `<td><strong>${m.mois}</strong></td>
+        <td>${m.jAbsent > 0 ? m.jAbsent + 'j' : '—'}</td>
+        <td>${m.hAbsent !== '0:00' ? m.hAbsent : '—'}</td>
+        <td class="${netNeg ? 'neg' : ''}">${m.net}</td>
+        <td>${m.conges > 0 ? m.conges + 'j' : '—'}</td>`;
+    }
+    html += '</tr>';
+  }
+
+  // Total
+  const t = data.total;
+  html += '<tr>';
+  if (!isAntonio) {
+    html += `<td>TOTAL</td><td>${t.hSupMaj}</td><td>${t.jRtt}j</td><td>${t.jAbsent}j</td><td class="${t.net?.startsWith('-')?'neg':'pos'}">${t.net}</td><td>${t.conges}j</td>`;
+  } else {
+    html += `<td>TOTAL</td><td>${t.jAbsent}j</td><td>${t.hAbsent}</td><td class="${t.net?.startsWith('-')?'neg':''}">${t.net}</td><td>${t.conges}j</td>`;
+  }
+  html += '</tr></tbody></table></div>';
+
+  el.innerHTML = html;
+}
+
+// ── CONFIG ────────────────────────────────────────────────────
+async function saveConfig() {
+  const url = document.getElementById('api-url').value.trim();
+  if (!url) { showToast('❌ URL vide'); return; }
+  API_URL = url;
+  
+
+  showToast('Test de connexion...');
+  const r = await apiGet({ action: 'ping' });
+  if (r && r.ok) {
+    showToast('✅ Connexion OK !');
+    setStatus('Connecté');
+    loadSolde();
+  } else {
+    showToast('❌ Échec : vérifiez l\'URL et les droits de déploiement');
+  }
+}
+
+// ── REFRESH ───────────────────────────────────────────────────
+function refreshAll() {
+  const activePage = document.querySelector('.page.active').id;
+  if (activePage === 'page-solde')   loadSolde();
+  if (activePage === 'page-semaine') loadSemaine(currentSalarie);
+  if (activePage === 'page-recap')   loadRecap(currentRecapSal);
+  showToast('🔄 Actualisation...');
+}
+
+// ── UTILS ─────────────────────────────────────────────────────
+function setStatus(msg) {
+  document.getElementById('nav-status').textContent = msg;
+}
+
+function showToast(msg, duration=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+window.onload = () => {
+  // URL codée en dur — connexion automatique
+  setStatus('Connexion...');
+  loadSolde();
+};
+</script>
+</body>
+</html>
