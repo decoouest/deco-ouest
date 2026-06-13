@@ -756,19 +756,32 @@ async function sauvegarder() {
     }
   }
 
-  // 3. Envoyer la photo (miniature compressée) en un seul GET
+  // 3. Envoyer la photo en chunks via GET (PropertiesService = cache persistant)
   if (selectedPhoto) {
     btn.textContent = 'Envoi photo...';
     try {
-      const r3 = await apiGet({
-        action: 'saisir_photo',
-        salarie: currentSalarie,
-        row: currentSaisieRow.row,
-        imageBase64: selectedPhoto,
-      });
-      if (!r3 || !r3.ok) {
-        showToast('⚠️ Photo : ' + (r3?.error || 'erreur'), 5000);
+      const CHUNK = 1000; // 1000 chars par chunk = URL ~1200 chars, très sûr
+      const total = Math.ceil(selectedPhoto.length / CHUNK);
+      let photoOk = true;
+
+      for (let i = 0; i < total; i++) {
+        const chunk = selectedPhoto.substring(i * CHUNK, (i+1) * CHUNK);
+        if (total > 1) btn.textContent = '📤 ' + (i+1) + '/' + total;
+        const r3 = await apiGet({
+          action: 'saisir_photo_chunk',
+          salarie: currentSalarie,
+          row: currentSaisieRow.row,
+          chunk: encodeURIComponent(chunk),
+          idx: i,
+          total: total,
+        });
+        if (!r3 || (!r3.ok && i === total-1)) {
+          showToast('⚠️ Photo chunk erreur: ' + (r3?.error||''), 5000);
+          photoOk = false;
+          break;
+        }
       }
+      if (photoOk) showToast('📷 Photo enregistrée !', 2000);
     } catch(err) {
       showToast('❌ Photo : ' + err.message, 5000);
     }
