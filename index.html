@@ -567,8 +567,8 @@ function renderSemaine(jours) {
       <div class="jour-date">${j.date}</div>
       <div class="jour-nom">${j.jour}</div>
       <div class="jour-type">${typeLabel(type)}</div>
-      ${isTravaille && j.travaille && j.travaille !== '0:00' ? `<div class="jour-heures">${j.travaille}</div>` : ''}
-      ${isTravaille && j.ecart && j.ecart !== '0:00' ? `<div class="jour-ecart ${j.ecart.startsWith('-') ? 'neg' : 'pos'}">${j.ecart}</div>` : ''}
+      ${isTravaille && j.travaille && j.travaille !== '0:00' ? `<div class="jour-heures">${cleanTime(j.travaille)}</div>` : ''}
+      ${isTravaille && j.ecart && j.ecart !== '0:00' ? `<div class="jour-ecart ${j.ecart.startsWith('-') ? 'neg' : 'pos'}">${cleanTime(j.ecart)}</div>` : ''}
     </div>`;
   }
 
@@ -597,6 +597,15 @@ function renderSemaine(jours) {
 
   html += '</div>';
   el.innerHTML = html;
+}
+
+// Nettoyer format heure : "8:00:00" → "8:00", "-0:22:00" → "-0:22"
+function cleanTime(str) {
+  if (!str) return str;
+  // Supprimer les secondes si présentes (ex: "8:00:00" → "8:00")
+  const parts = str.split(':');
+  if (parts.length === 3) return parts[0] + ':' + parts[1];
+  return str;
 }
 
 function typeToClass(type) {
@@ -730,7 +739,7 @@ async function sauvegarder() {
   btn.disabled = true;
   btn.textContent = 'Enregistrement...';
 
-  // 1. Sauvegarder le type via GET (évite CORS)
+  // 1. Sauvegarder le type
   const r1 = await apiGet({
     action: 'saisir_type',
     salarie: currentSalarie,
@@ -738,7 +747,7 @@ async function sauvegarder() {
     type: selectedType,
   });
 
-  // 2. Sauvegarder heure de fin via GET
+  // 2. Sauvegarder heure de fin
   const isTrav = selectedType === 'Jour Travaillé' || selectedType === 'journee solidarité travaillé';
   if (isTrav) {
     const fin = document.getElementById('f-fin').value;
@@ -752,17 +761,21 @@ async function sauvegarder() {
     }
   }
 
-  // 3. Envoyer la photo si présente (via GET avec base64 tronqué si trop grand)
+  // 3. Envoyer la photo via POST (CORS OK depuis GitHub Pages)
   if (selectedPhoto) {
     btn.textContent = 'Envoi photo...';
-    // Découper en chunks de 50000 chars si nécessaire
-    const chunk = selectedPhoto.substring(0, 50000);
-    await apiGet({
+    const r3 = await apiPost({
       action: 'saisir_photo',
       salarie: currentSalarie,
       row: currentSaisieRow.row,
-      imageBase64: chunk,
+      imageBase64: selectedPhoto,
     });
+    if (!r3 || !r3.ok) {
+      showToast('⚠️ Heures OK mais photo échouée : ' + (r3?.error || ''));
+      btn.disabled = false;
+      btn.textContent = 'Enregistrer dans Sheets';
+      return;
+    }
   }
 
   if (r1 && r1.ok) {
