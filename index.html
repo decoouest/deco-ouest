@@ -480,58 +480,28 @@ async function loadMensuel() {
   }
   el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Chargement du mois...</div></div>';
 
-  const now = new Date();
-  const target = new Date(now.getFullYear(), now.getMonth() + currentMensMonthOffset, 1);
-  const moisNom = target.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+  // UNE SEULE requête pour tout le mois
+  const data = await apiGet({
+    action: 'mois',
+    salarie: currentMensSalarie,
+    offset: currentMensMonthOffset
+  });
 
-  document.getElementById('mens-month-label').textContent =
-    moisNom.charAt(0).toUpperCase() + moisNom.slice(1);
-
-  const today = new Date(); today.setHours(0,0,0,0);
-  const todayMonday = new Date(today);
-  todayMonday.setDate(today.getDate() - ((today.getDay()+6)%7));
-
-  const firstDay = new Date(target.getFullYear(), target.getMonth(), 1);
-  const lastDay  = new Date(target.getFullYear(), target.getMonth()+1, 0);
-
-  const firstMonday = new Date(firstDay);
-  firstMonday.setDate(firstDay.getDate() - ((firstDay.getDay()+6)%7));
-
-  // Récupérer toutes les semaines du mois
-  const mondays = [];
-  let cursor = new Date(firstMonday);
-  while (cursor <= lastDay) {
-    mondays.push(new Date(cursor));
-    cursor.setDate(cursor.getDate()+7);
-  }
-
-  const allJours = [];
-  let erreur = false;
-  for (const m of mondays) {
-    const diffDays = Math.round((m - todayMonday) / (1000*60*60*24));
-    const offset = Math.round(diffDays/7);
-    try {
-      const data = await apiGet({action:'semaine', salarie: currentMensSalarie, offset: offset});
-      if (!data) { erreur = true; break; }
-      if (data.semaine) {
-        for (const j of data.semaine) {
-          const parts = j.date.split('/');
-          const mm = parseInt(parts[1]);
-          if (mm - 1 === target.getMonth()) allJours.push(j);
-        }
-      }
-    } catch(e) {
-      erreur = true;
-      break;
-    }
-  }
-
-  if (erreur || allJours.length === 0) {
-    el.innerHTML = '<div class="empty">❌ Impossible de charger le mois — vérifiez la connexion</div>';
+  if (!data || !data.ok) {
+    el.innerHTML = '<div class="empty">❌ ' + (data?.error || 'Impossible de charger le mois') + '</div>';
     return;
   }
 
-  renderMensuel(allJours, currentMensSalarie, moisNom);
+  const moisNom = data.nomMois || '';
+  document.getElementById('mens-month-label').textContent =
+    moisNom.charAt(0).toUpperCase() + moisNom.slice(1);
+
+  if (!data.mois || data.mois.length === 0) {
+    el.innerHTML = '<div class="empty">📅 Aucune donnée pour ce mois</div>';
+    return;
+  }
+
+  renderMensuel(data.mois, currentMensSalarie, moisNom);
 }
 
 function renderMensuel(jours, sal, moisNom) {
@@ -891,7 +861,7 @@ function renderCalCell(j, month) {
 }
 
 // ── CONFIG ────────────────────────────────────────────────────
-let API_URL = 'https://script.google.com/macros/s/AKfycbz5RpfL8IK-4gRKEl7PeGWnW3nSKthtVK6aPYlvjnSRCf2opUxLdVXnNzbxmKPIBUV2GQ/exec';
+let API_URL = 'https://script.google.com/macros/s/AKfycby0Ejt974PrxELUiBqeWz13sLdPH3e2CWNZq6eZwndy91QNvkHJ7QbD8VYRppBwMkYtwA/exec';
 const CACHE = {};
 let currentSalarie = 'ANATOLE';
 let currentRecapSal = 'ANATOLE';
