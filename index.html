@@ -730,23 +730,41 @@ async function telechargerPdfMensuel() {
     </div>
     </body></html>`;
 
-    // Envoyer au script pour conversion PDF
-    const r = await apiGet({
-      action: 'pdf_mensuel',
-      salarie: sal,
-      html: encodeURIComponent(pdfHtml),
-    });
+    // Envoyer le HTML en chunks via GET (même méthode que les photos)
+    const encoded = encodeURIComponent(pdfHtml);
+    const CHUNK = 800;
+    const total = Math.ceil(encoded.length / CHUNK);
+    let ok = true;
+    let finalR = null;
 
-    if (r && r.ok) {
+    for (let i = 0; i < total; i++) {
+      const chunk = encoded.substring(i * CHUNK, (i+1) * CHUNK);
+      btn.textContent = '⏳ ' + Math.round((i+1)/total*100) + '%...';
+      const r = await apiGet({
+        action: 'pdf_mensuel_chunk',
+        salarie: sal,
+        chunk: chunk,
+        idx: i,
+        total: total,
+      });
+      if (!r || !r.ok) {
+        showToast('❌ Erreur chunk ' + i + ' : ' + (r?.error || ''), 4000);
+        ok = false;
+        break;
+      }
+      if (i === total - 1) finalR = r;
+    }
+
+    if (ok && finalR && finalR.base64) {
       const link = document.createElement('a');
-      link.href = 'data:application/pdf;base64,' + r.base64;
+      link.href = 'data:application/pdf;base64,' + finalR.base64;
       link.download = 'Mensuel_' + sal + '_' + moisNom.replace(/ /g,'_') + '.pdf';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       showToast('✅ PDF téléchargé !', 2000);
-    } else {
-      showToast('❌ Erreur : ' + (r?.error || 'impossible'), 4000);
+    } else if (ok) {
+      showToast('❌ PDF non généré', 4000);
     }
   } catch(err) {
     showToast('❌ ' + err.message, 4000);
@@ -875,7 +893,7 @@ function renderCalCell(j, month) {
 }
 
 // ── CONFIG ────────────────────────────────────────────────────
-let API_URL = 'https://script.google.com/macros/s/AKfycbx4P3BXj-qrq5Tre4fFQ0iCIv0JKzpaV7okCPiF7uffyQu4CxwRTDoasEYg87JAbDVx/exec';
+let API_URL = 'https://script.google.com/macros/s/AKfycbzm8J_49_H7LxXHMc4JnbDdxbb4Obju_4D8c6D7N1yTi2WKkc6dmPpnFtvzG15INV9snw/exec';
 const CACHE = {};
 let currentSalarie = 'ANATOLE';
 let currentRecapSal = 'ANATOLE';
