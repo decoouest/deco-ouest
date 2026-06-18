@@ -512,37 +512,103 @@ async function telechargerPdfCalendrier() {
     const moisNom = target.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
     const moisNomFr = moisNom.charAt(0).toUpperCase() + moisNom.slice(1);
 
-    // Récupérer le contenu HTML du calendrier actuel
-    const calContent = document.getElementById('calendrier-content').innerHTML;
+    // Récupérer les données du mois depuis l'API
+    const data = await apiGet({action:'mois', salarie: currentCalSalarie, offset: currentCalMonthOffset});
+    if (!data || !data.ok) {
+      showToast('❌ Impossible de récupérer les données', 4000);
+      btn.disabled=false; btn.textContent='📄 Télécharger en PDF';
+      return;
+    }
+
+    const joursMap = {};
+    for (const j of data.mois) joursMap[j.date] = j;
+
+    function hhmToMin(str) {
+      if (!str||str===''||str==='0:00'||str==='0:00:00') return 0;
+      const p = str.replace('-','').split(':');
+      return parseInt(p[0]||0)*60+parseInt(p[1]||0);
+    }
+    function minToHhm(min) {
+      return Math.floor(min/60)+':'+(min%60).toString().padStart(2,'0');
+    }
+    function typeColor(type) {
+      if (!type||type==='Jour Travaillé'||type==='journee solidarité travaillé') return '#E3F2FD';
+      if (type==='CONGE') return '#E8F5E9';
+      if (type==='RTT') return '#F3E5F5';
+      if (type==='ABSENT'||type==='ARRET TRAVAIL MALADIE') return '#FFEBEE';
+      if (type==='JOUR FERIE non travaillé') return '#FFF9C4';
+      return '#ECEFF1';
+    }
+    function typeLabel(type) {
+      if (type==='CONGE') return 'Congé';
+      if (type==='RTT') return 'RTT';
+      if (type==='ABSENT') return 'Absent';
+      if (type==='JOUR FERIE non travaillé') return 'Férié';
+      if (type==='ARRET TRAVAIL MALADIE') return 'Maladie';
+      return '';
+    }
+
+    const month = target.getMonth();
+    const firstDay = new Date(target.getFullYear(), month, 1);
+    const lastDay  = new Date(target.getFullYear(), month+1, 0);
+    const firstMon = new Date(firstDay);
+    firstMon.setDate(firstDay.getDate()-((firstDay.getDay()+6)%7));
+
+    const weeks = [];
+    let cursor = new Date(firstMon);
+    while (cursor <= lastDay) { weeks.push(new Date(cursor)); cursor.setDate(cursor.getDate()+7); }
+
+    const pad = n => String(n).padStart(2,'0');
+    const joursLabels = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    const cellS = 'padding:5px;border-radius:4px;font-size:10px;vertical-align:top;width:12%;';
+    const totalS = 'padding:5px;border-radius:4px;font-size:11px;font-weight:700;color:white;background:#1565C0;text-align:center;vertical-align:middle;width:7%;';
+
+    let totalMoisMin = 0;
+    let calHtml = '<table style="width:100%;border-collapse:separate;border-spacing:3px"><tr>';
+
+    for (const j of joursLabels) {
+      calHtml += `<td style="text-align:center;font-size:9px;font-weight:700;color:#607D8B;padding:2px 0">${j}</td>`;
+    }
+    calHtml += '<td style="text-align:center;font-size:9px;font-weight:700;color:#1565C0;padding:2px 0">Total</td></tr>';
+
+    for (const mon of weeks) {
+      let weekMin = 0;
+      calHtml += '<tr style="height:55px">';
+      for (let d = 0; d < 7; d++) {
+        const dt = new Date(mon); dt.setDate(mon.getDate()+d);
+        const inMonth = dt.getMonth()===month;
+        const key = pad(dt.getDate())+'/'+pad(dt.getMonth()+1)+'/'+dt.getFullYear();
+        const j = joursMap[key];
+        const bg = inMonth && j ? typeColor(j.type) : '#F5F5F5';
+        const op = inMonth ? '1' : '0.4';
+        let inner = `<b style="font-size:12px">${dt.getDate()}</b>`;
+        if (j && j.travaille && j.travaille !== '0:00' && j.travaille !== '0:00:00') {
+          const t = j.travaille.replace(':00','');
+          inner += `<br><span style="color:#1565C0;font-size:10px">${t}</span>`;
+          if (inMonth) weekMin += hhmToMin(j.travaille);
+        } else if (j) {
+          const lbl = typeLabel(j.type);
+          if (lbl) inner += `<br><span style="color:#546E7A;font-size:9px">${lbl}</span>`;
+        }
+        calHtml += `<td style="${cellS}background:${bg};opacity:${op}">${inner}</td>`;
+      }
+      totalMoisMin += weekMin;
+      calHtml += `<td style="${totalS}">${weekMin>0?minToHhm(weekMin):'—'}</td></tr>`;
+    }
+    calHtml += '</table>';
+    calHtml += `<div style="background:#1565C0;color:white;border-radius:8px;padding:12px;text-align:center;margin-top:12px">
+      <div style="font-size:12px;opacity:.8">Total du mois</div>
+      <div style="font-size:24px;font-weight:700;margin-top:4px">${minToHhm(totalMoisMin)}</div>
+    </div>`;
 
     const pdfHtml = `<html><head><meta charset="utf-8"><style>
-      body{font-family:Arial,sans-serif;font-size:11px;color:#263238;padding:16px}
+      body{font-family:Arial,sans-serif;color:#263238;padding:20px;margin:0}
       h1{color:#1565C0;font-size:18px;margin-bottom:4px}
       .sub{color:#607D8B;font-size:12px;margin-bottom:16px}
-      .card{background:white;border-radius:8px;padding:12px;margin-bottom:12px}
-      .cal-grid{display:grid;grid-template-columns:repeat(7,1fr) auto;gap:3px}
-      .cal-head{text-align:center;font-size:9px;font-weight:700;color:#607D8B;text-transform:uppercase;padding:3px 0}
-      .cal-total-head{font-size:9px;font-weight:700;color:#1565C0;text-align:center;padding:3px 0}
-      .cal-cell{border-radius:5px;min-height:40px;padding:3px;font-size:9px}
-      .cal-daynum{font-size:10px;font-weight:700}
-      .cal-extra{font-size:8px;font-weight:600}
-      .cal-cell.travaille{background:#E3F2FD}
-      .cal-cell.weekend{background:#ECEFF1;color:#90A4AE}
-      .cal-cell.conge{background:#E8F5E9}
-      .cal-cell.absent{background:#FFEBEE}
-      .cal-cell.rtt{background:#F3E5F5}
-      .cal-cell.ferie{background:#FFF9C4}
-      .cal-cell.out-month{opacity:.3}
-      .cal-total-cell{background:#E3F2FD;border-radius:5px;min-height:40px;
-                      display:flex;align-items:center;justify-content:center;
-                      font-size:10px;font-weight:700;color:#1565C0}
-      .cal-total-mois{background:#1565C0;color:white;border-radius:8px;padding:10px;text-align:center;margin-top:8px}
-      .cal-total-mois .val{font-size:18px;font-weight:700}
-      .cal-total-mois .lbl{font-size:10px;opacity:.8}
     </style></head><body>
     <h1>D ECO OUEST — ${currentCalSalarie} — ${moisNomFr}</h1>
     <div class="sub">Généré le ${new Date().toLocaleDateString('fr-FR')}</div>
-    ${calContent}
+    ${calHtml}
     </body></html>`;
 
     const encoded = encodeURIComponent(pdfHtml);
@@ -553,13 +619,7 @@ async function telechargerPdfCalendrier() {
     for (let i = 0; i < total; i++) {
       const chunk = encoded.substring(i * CHUNK, (i+1) * CHUNK);
       btn.textContent = '⏳ ' + Math.round((i+1)/total*100) + '%...';
-      const r = await apiGet({
-        action: 'pdf_mensuel_chunk',
-        salarie: currentCalSalarie,
-        chunk: chunk,
-        idx: i,
-        total: total,
-      });
+      const r = await apiGet({action:'pdf_mensuel_chunk', salarie: currentCalSalarie, chunk, idx: i, total});
       if (!r || !r.ok) { showToast('❌ Erreur PDF', 4000); break; }
       if (i === total - 1) finalR = r;
     }
