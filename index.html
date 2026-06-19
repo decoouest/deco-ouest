@@ -598,6 +598,18 @@ async function telechargerPdfCalendrier() {
         if (inMonth && isAbsRttConge) baseAjusteeMin -= baseJourMin;
         calHtml += `<td style="${cellS}background:${bg};opacity:${op}">${inner}</td>`;
       }
+      // Vérifier si la semaine a des données saisies
+      const today = new Date(); today.setHours(0,0,0,0);
+      const semaineEstFuture = mon > today;
+      let aDesDonnees = false;
+      for (let d = 0; d < 5; d++) {
+        const dt2 = new Date(mon); dt2.setDate(mon.getDate()+d);
+        const key2 = pad(dt2.getDate())+'/'+pad(dt2.getMonth()+1)+'/'+dt2.getFullYear();
+        const j2 = joursMap[key2];
+        if (j2 && j2.travaille && j2.travaille !== '' && j2.travaille !== '0:00' && j2.travaille !== '0:00:00') {
+          aDesDonnees = true; break;
+        }
+      }
       // Total = base ajustée + Maj. 25% (sauf Antonio) — identique à l'onglet Semaine
       let weekTotalMin = weekMin;
       if (currentCalSalarie !== 'ANTONIO') {
@@ -605,8 +617,12 @@ async function telechargerPdfCalendrier() {
         const majMin = excessMin > 0 ? Math.round(excessMin * 1.25) : 0;
         weekTotalMin = baseAjusteeMin + majMin;
       }
-      totalMoisMin += weekTotalMin;
-      calHtml += `<td style="${totalS}">${weekTotalMin>0?minToHhm(weekTotalMin):'—'}</td></tr>`;
+      if (semaineEstFuture && !aDesDonnees) {
+        calHtml += `<td style="${totalS}">—</td></tr>`;
+      } else {
+        totalMoisMin += weekTotalMin;
+        calHtml += `<td style="${totalS}">${weekTotalMin>0?minToHhm(weekTotalMin):'—'}</td></tr>`;
+      }
     }
     calHtml += '</table>';
     calHtml += `<div style="background:#1565C0;color:white;border-radius:8px;padding:12px;text-align:center;margin-top:12px">
@@ -1152,6 +1168,16 @@ function renderCalendrier(weeksData, month) {
       </div>`;
     }
     html += '</div>';
+    // Vérifier si la semaine a des données saisies (jour travaillé OU futur sans rien)
+    const today = new Date(); today.setHours(0,0,0,0);
+    const semaineEstFuture = week.monday > today;
+    let aDesDonnees = false;
+    for (let i = 0; i < 5; i++) {
+      const j = week.jours[i];
+      if (j && j.travaille && j.travaille !== '' && j.travaille !== '0:00' && j.travaille !== '0:00:00') {
+        aDesDonnees = true; break;
+      }
+    }
     // Total = base ajustée + Maj. 25% (sauf Antonio) — identique à l'onglet Semaine
     let weekTotalMin = weekMin;
     if (currentCalSalarie !== 'ANTONIO') {
@@ -1159,9 +1185,13 @@ function renderCalendrier(weeksData, month) {
       const majMin = excessMin > 0 ? Math.round(excessMin * 1.25) : 0;
       weekTotalMin = baseAjusteeMin + majMin;
     }
-    // Colonne total semaine SÉPARÉE (H.trav + Maj.)
-    totalMoisMin += weekTotalMin;
-    html += `<div class="cal-total-cell">${weekTotalMin > 0 ? minToHhm(weekTotalMin) : '—'}</div>`;
+    // Colonne total semaine SÉPARÉE (H.trav + Maj.) — ignorer si semaine future sans données
+    if (semaineEstFuture && !aDesDonnees) {
+      html += `<div class="cal-total-cell">—</div>`;
+    } else {
+      totalMoisMin += weekTotalMin;
+      html += `<div class="cal-total-cell">${weekTotalMin > 0 ? minToHhm(weekTotalMin) : '—'}</div>`;
+    }
     html += '</div>';
   }
 
