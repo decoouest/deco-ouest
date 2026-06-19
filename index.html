@@ -777,6 +777,7 @@ function renderMensuel(jours, sal, moisNom) {
     const isConge = type === 'CONGE';
     const isRtt = type === 'RTT';
     const isAbsent = type === 'ABSENT' || type === 'ARRET TRAVAIL MALADIE';
+    const isFerie = type === 'JOUR FERIE non travaillé';
     const isAbsRttConge = type === 'CONGE' || type === 'RTT' || type === 'ABSENT' || type === 'ARRET TRAVAIL MALADIE';
 
     let rowClass = '';
