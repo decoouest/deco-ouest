@@ -573,6 +573,7 @@ async function telechargerPdfCalendrier() {
 
     for (const mon of weeks) {
       let weekMin = 0;
+      let nbJoursTrav = 0;
       calHtml += '<tr style="height:55px">';
       for (let d = 0; d < 7; d++) {
         const dt = new Date(mon); dt.setDate(mon.getDate()+d);
@@ -582,18 +583,27 @@ async function telechargerPdfCalendrier() {
         const bg = inMonth && j ? typeColor(j.type) : '#F5F5F5';
         const op = inMonth ? '1' : '0.4';
         let inner = `<b style="font-size:12px">${dt.getDate()}</b>`;
-        if (j && j.travaille && j.travaille !== '0:00' && j.travaille !== '0:00:00') {
+        const isTrav = j && (j.type === 'Jour Travaillé' || j.type === 'journee solidarité travaillé');
+        if (isTrav && j.travaille && j.travaille !== '0:00' && j.travaille !== '0:00:00') {
           const t = j.travaille.replace(':00','');
           inner += `<br><span style="color:#1565C0;font-size:10px">${t}</span>`;
-          if (inMonth) weekMin += hhmToMin(j.travaille);
+          if (inMonth) { weekMin += hhmToMin(j.travaille); nbJoursTrav++; }
         } else if (j) {
           const lbl = typeLabel(j.type);
           if (lbl) inner += `<br><span style="color:#546E7A;font-size:9px">${lbl}</span>`;
         }
         calHtml += `<td style="${cellS}background:${bg};opacity:${op}">${inner}</td>`;
       }
-      totalMoisMin += weekMin;
-      calHtml += `<td style="${totalS}">${weekMin>0?minToHhm(weekMin):'—'}</td></tr>`;
+      // Ajouter majoration 25% (sauf Antonio)
+      let weekTotalMin = weekMin;
+      if (currentCalSalarie !== 'ANTONIO' && nbJoursTrav > 0) {
+        const baseMin = (35*60/5) * nbJoursTrav;
+        const excessMin = weekMin - baseMin;
+        const majMin = excessMin > 0 ? Math.round(excessMin * 1.25) : 0;
+        weekTotalMin = weekMin + majMin;
+      }
+      totalMoisMin += weekTotalMin;
+      calHtml += `<td style="${totalS}">${weekTotalMin>0?minToHhm(weekTotalMin):'—'}</td></tr>`;
     }
     calHtml += '</table>';
     calHtml += `<div style="background:#1565C0;color:white;border-radius:8px;padding:12px;text-align:center;margin-top:12px">
@@ -1110,6 +1120,7 @@ function renderCalendrier(weeksData, month) {
 
   for (const week of weeksData) {
     let weekMin = 0;
+    let nbJoursTrav = 0;
     html += '<div style="display:flex;gap:6px;align-items:stretch;margin-bottom:4px">';
     html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;flex:1">';
     // Jours lun-ven
@@ -1118,7 +1129,8 @@ function renderCalendrier(weeksData, month) {
       if (week.jours[i]) {
         const j = week.jours[i];
         const inMonth = parseInt(j.date.split('/')[1])-1 === month;
-        if (inMonth && j.travaille) weekMin += hhmToMin(j.travaille);
+        const isTrav = j.type === 'Jour Travaillé' || j.type === 'journee solidarité travaillé';
+        if (inMonth && isTrav && j.travaille) { weekMin += hhmToMin(j.travaille); nbJoursTrav++; }
       }
     }
     // Sam/Dim
@@ -1132,9 +1144,17 @@ function renderCalendrier(weeksData, month) {
       </div>`;
     }
     html += '</div>';
-    // Colonne total semaine SÉPARÉE
-    totalMoisMin += weekMin;
-    html += `<div class="cal-total-cell">${weekMin > 0 ? minToHhm(weekMin) : '—'}</div>`;
+    // Ajouter majoration 25% (sauf Antonio) — base 35h/5j proportionnelle aux jours travaillés du mois
+    let weekTotalMin = weekMin;
+    if (currentCalSalarie !== 'ANTONIO' && nbJoursTrav > 0) {
+      const baseMin = (35*60/5) * nbJoursTrav;
+      const excessMin = weekMin - baseMin;
+      const majMin = excessMin > 0 ? Math.round(excessMin * 1.25) : 0;
+      weekTotalMin = weekMin + majMin;
+    }
+    // Colonne total semaine SÉPARÉE (H.trav + Maj.)
+    totalMoisMin += weekTotalMin;
+    html += `<div class="cal-total-cell">${weekTotalMin > 0 ? minToHhm(weekTotalMin) : '—'}</div>`;
     html += '</div>';
   }
 
