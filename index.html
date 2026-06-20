@@ -576,6 +576,7 @@ async function telechargerPdfCalendrier() {
       let nbJoursTrav = 0;
       let baseAjusteeMin = (currentCalSalarie === 'ANTONIO' ? 39 : 35) * 60;
       const baseJourMin = (currentCalSalarie === 'ANTONIO' ? 8 : 7) * 60;
+      let aArretMaladie = false;
       calHtml += '<tr style="height:55px">';
       for (let d = 0; d < 7; d++) {
         const dt = new Date(mon); dt.setDate(mon.getDate()+d);
@@ -587,6 +588,7 @@ async function telechargerPdfCalendrier() {
         let inner = `<b style="font-size:12px">${dt.getDate()}</b>`;
         const isTrav = j && (j.type === 'Jour Travaillé' || j.type === 'journee solidarité travaillé');
         const isAbsRttConge = j && (j.type === 'CONGE' || j.type === 'RTT' || j.type === 'ABSENT' || j.type === 'ARRET TRAVAIL MALADIE');
+        if (inMonth && j && j.type === 'ARRET TRAVAIL MALADIE') aArretMaladie = true;
         if (isTrav && j.travaille && j.travaille !== '0:00' && j.travaille !== '0:00:00') {
           const t = j.travaille.replace(':00','');
           inner += `<br><span style="color:#1565C0;font-size:10px">${t}</span>`;
@@ -610,12 +612,12 @@ async function telechargerPdfCalendrier() {
           aDesDonnees = true; break;
         }
       }
-      // Total = base ajustée + Maj. 25% (sauf Antonio) — identique à l'onglet Semaine
+      // Total : si Arrêt Maladie → H.trav + Maj ; sinon → base ajustée + Maj
       let weekTotalMin = weekMin;
       if (currentCalSalarie !== 'ANTONIO') {
         const excessMin = weekMin - baseAjusteeMin;
         const majMin = excessMin > 0 ? Math.round(excessMin * 1.25) : 0;
-        weekTotalMin = weekMin + majMin;
+        weekTotalMin = aArretMaladie ? (weekMin + majMin) : (baseAjusteeMin + majMin);
       }
       if (semaineEstFuture && !aDesDonnees) {
         calHtml += `<td style="${totalS}">—</td></tr>`;
@@ -1143,6 +1145,7 @@ function renderCalendrier(weeksData, month) {
     let nbJoursTrav = 0;
     let baseAjusteeMin = (currentCalSalarie === 'ANTONIO' ? 39 : 35) * 60;
     const baseJourMin = (currentCalSalarie === 'ANTONIO' ? 8 : 7) * 60;
+    let aArretMaladie = false;
     html += '<div style="display:flex;gap:6px;align-items:stretch;margin-bottom:4px">';
     html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;flex:1">';
     // Jours lun-ven
@@ -1153,6 +1156,7 @@ function renderCalendrier(weeksData, month) {
         const inMonth = parseInt(j.date.split('/')[1])-1 === month;
         const isTrav = j.type === 'Jour Travaillé' || j.type === 'journee solidarité travaillé';
         const isAbsRttConge = j.type === 'CONGE' || j.type === 'RTT' || j.type === 'ABSENT' || j.type === 'ARRET TRAVAIL MALADIE';
+        if (inMonth && j.type === 'ARRET TRAVAIL MALADIE') aArretMaladie = true;
         if (inMonth && isTrav && j.travaille) { weekMin += hhmToMin(j.travaille); nbJoursTrav++; }
         if (inMonth && isAbsRttConge) { baseAjusteeMin -= baseJourMin; }
       }
@@ -1178,12 +1182,12 @@ function renderCalendrier(weeksData, month) {
         aDesDonnees = true; break;
       }
     }
-    // Total = base ajustée + Maj. 25% (sauf Antonio) — identique à l'onglet Semaine
+    // Total : si Arrêt Maladie → H.trav + Maj ; sinon → base ajustée + Maj
     let weekTotalMin = weekMin;
     if (currentCalSalarie !== 'ANTONIO') {
       const excessMin = weekMin - baseAjusteeMin;
       const majMin = excessMin > 0 ? Math.round(excessMin * 1.25) : 0;
-      weekTotalMin = weekMin + majMin;
+      weekTotalMin = aArretMaladie ? (weekMin + majMin) : (baseAjusteeMin + majMin);
     }
     // Colonne total semaine SÉPARÉE (H.trav + Maj.) — ignorer si semaine future sans données
     if (semaineEstFuture && !aDesDonnees) {
@@ -1498,11 +1502,13 @@ function renderSemaine(jours) {
   const BASE_JOUR = (sal === 'ANTONIO') ? 8 : 7; // h par jour absent/RTT/congé
   let joursComptes = 0;
   let baseAjustee = BASE_SEMAINE * 60; // en minutes
+  let aArretMaladie = false;
 
   for (const j of jours) {
     const type = j.type || '';
     const isTravaille = type === 'Jour Travaillé' || type === 'journee solidarité travaillé';
     const isAbsRttConge = type === 'CONGE' || type === 'RTT' || type === 'ABSENT' || type === 'ARRET TRAVAIL MALADIE';
+    if (type === 'ARRET TRAVAIL MALADIE') aArretMaladie = true;
     if (isTravaille && j.travaille) {
       totalTravMin += parseDisplayDuration(j.travaille);
       joursComptes++;
@@ -1517,6 +1523,8 @@ function renderSemaine(jours) {
   // Maj 25% = max(total - base ajustée, 0) * 1.25 — uniquement pour Anatole et Artiom
   const excessMin = totalTravMin - baseAjustee;
   totalMajMin = (sal === 'ANTONIO') ? 0 : (excessMin > 0 ? Math.round(excessMin * 1.25) : 0);
+  // Total : si Arrêt Maladie dans la semaine → H.trav + Maj ; sinon → base ajustée + Maj
+  const totalFinalMin = aArretMaladie ? (totalTravMin + totalMajMin) : (baseAjustee + totalMajMin);
 
   let html = '<div class="card"><div class="card-title">Cette semaine — cliquez pour saisir</div>';
   for (const j of jours) {
@@ -1556,7 +1564,7 @@ function renderSemaine(jours) {
         </div>
         <div style="text-align:center;background:var(--blue);border-radius:8px;padding:8px;grid-column:1/-1">
           <div style="font-size:10px;color:rgba(255,255,255,.8);margin-bottom:3px">Total (H. trav. + Maj.)</div>
-          <div style="font-size:20px;font-weight:700;color:white">${minsToStr(totalTravMin + totalMajMin)}</div>
+          <div style="font-size:20px;font-weight:700;color:white">${minsToStr(totalFinalMin)}</div>
         </div>` : `<div style="text-align:center;background:var(--blue);border-radius:8px;padding:8px;grid-column:1/-1">
           <div style="font-size:10px;color:rgba(255,255,255,.8);margin-bottom:3px">Total semaine</div>
           <div style="font-size:20px;font-weight:700;color:white">${minsToStr(totalTravMin)}</div>
