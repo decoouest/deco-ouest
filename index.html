@@ -1581,7 +1581,7 @@ function renderSemaine(jours) {
       <div class="jour-type">${typeLabel(type)}</div>
       ${isTravaille && j.travaille && j.travaille !== '0:00' ? `<div class="jour-heures">${cleanTime(j.travaille)}</div>` : ''}
       ${isTravaille && j.ecart && j.ecart !== '0:00' ? `<div class="jour-ecart ${j.ecart.startsWith('-') ? 'neg' : 'pos'}">${cleanTime(j.ecart)}</div>` : ''}
-      ${j.remarque ? `<div style="font-size:9px;color:var(--amber);margin-left:4px">💬</div>` : ''}
+      ${j.remarque ? `<div style="font-size:13px;color:var(--amber);margin-left:6px;cursor:pointer" onclick="event.stopPropagation(); afficherRemarque('${j.date}', '${j.remarque.replace(/'/g, "\\'").replace(/\n/g, ' ')}')">💬</div>` : ''}
     </div>`;
   }
 
@@ -1620,6 +1620,31 @@ function renderSemaine(jours) {
 }
 
 // Nettoyer format heure : "8:00:00" → "8:00", "-0:22:00" → "-0:22"
+// ── AFFICHER REMARQUE (popup) ───────────────────────────────────
+function afficherRemarque(date, texte) {
+  let modal = document.getElementById('remarque-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'remarque-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:10000;' +
+      'background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:20px;max-width:320px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--blue)">💬 Remarque — ${date}</div>
+        <button onclick="document.getElementById('remarque-modal').style.display='none'"
+                style="background:none;border:none;font-size:18px;color:#999;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:14px;color:#263238;line-height:1.5;white-space:pre-wrap">${texte}</div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+}
+
 function cleanTime(str) {
   if (!str) return str;
   // Supprimer les secondes si présentes (ex: "8:00:00" → "8:00")
