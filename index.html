@@ -753,13 +753,6 @@ async function loadMensuel() {
     return;
   }
 
-  // Cache : ne recharge pas si même salarié et même mois
-  const cacheKey = 'mensuel_' + currentMensSalarie + '_' + currentMensMonthOffset;
-  if (CACHE[cacheKey]) {
-    renderMensuelFromCache(CACHE[cacheKey]);
-    return;
-  }
-
   el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Chargement du mois...</div></div>';
 
   // UNE SEULE requête pour tout le mois
@@ -783,23 +776,10 @@ async function loadMensuel() {
     return;
   }
 
-  // Mettre en cache
-  CACHE[cacheKey] = { mois: data.mois, sal: currentMensSalarie, moisNom };
-
   try {
     renderMensuel(data.mois, currentMensSalarie, moisNom);
   } catch(err) {
     el.innerHTML = '<div class="empty">❌ ' + err.message + '</div>';
-  }
-}
-
-function renderMensuelFromCache(cached) {
-  document.getElementById('mens-month-label').textContent =
-    cached.moisNom.charAt(0).toUpperCase() + cached.moisNom.slice(1);
-  try {
-    renderMensuel(cached.mois, cached.sal, cached.moisNom);
-  } catch(err) {
-    document.getElementById('mensuel-content').innerHTML = '<div class="empty">❌ ' + err.message + '</div>';
   }
 }
 
@@ -1101,4 +1081,20 @@ async function loadCalendrier() {
   document.getElementById('cal-month-label').textContent =
     traduireMois(target.toLocaleDateString('en-US', {month:'long', year:'numeric'}));
 
- 
+  el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Chargement du calendrier...</div></div>';
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+
+  // Lundi de la semaine contenant le 1er du mois
+  const firstMonday = new Date(firstDay);
+  firstMonday.setDate(firstDay.getDate() - ((firstDay.getDay()+6)%7));
+
+  // Lundi "aujourd'hui" pour calcul offset relatif
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayMonday = new Date(today);
+  todayMonday.setDate(today.getDate() - ((today.getDay()+6)%7));
+
+  // Liste des lundis couvrant le mois affiché
+  const mondays = [];
+  let cursor = new Date(firs
