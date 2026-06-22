@@ -747,6 +747,14 @@ async function loadMensuel() {
     el.innerHTML = '<div class="empty">⚙️ Configurez l\'URL Apps Script</div>';
     return;
   }
+
+  // Cache : ne recharge pas si même salarié et même mois
+  const cacheKey = 'mensuel_' + currentMensSalarie + '_' + currentMensMonthOffset;
+  if (CACHE[cacheKey]) {
+    renderMensuelFromCache(CACHE[cacheKey]);
+    return;
+  }
+
   el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Chargement du mois...</div></div>';
 
   // UNE SEULE requête pour tout le mois
@@ -770,10 +778,23 @@ async function loadMensuel() {
     return;
   }
 
+  // Mettre en cache
+  CACHE[cacheKey] = { mois: data.mois, sal: currentMensSalarie, moisNom };
+
   try {
     renderMensuel(data.mois, currentMensSalarie, moisNom);
   } catch(err) {
     el.innerHTML = '<div class="empty">❌ ' + err.message + '</div>';
+  }
+}
+
+function renderMensuelFromCache(cached) {
+  document.getElementById('mens-month-label').textContent =
+    cached.moisNom.charAt(0).toUpperCase() + cached.moisNom.slice(1);
+  try {
+    renderMensuel(cached.mois, cached.sal, cached.moisNom);
+  } catch(err) {
+    document.getElementById('mensuel-content').innerHTML = '<div class="empty">❌ ' + err.message + '</div>';
   }
 }
 
@@ -1082,14 +1103,22 @@ async function loadCalendrier() {
     el.innerHTML = '<div class="empty">⚙️ Configurez l\'URL Apps Script</div>';
     return;
   }
-  el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Chargement du calendrier...</div></div>';
 
   const now = new Date();
   const target = new Date(now.getFullYear(), now.getMonth() + currentCalMonthOffset, 1);
   const year = target.getFullYear(), month = target.getMonth();
 
   document.getElementById('cal-month-label').textContent =
-    target.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+    traduireMois(target.toLocaleDateString('en-US', {month:'long', year:'numeric'}));
+
+  // Cache : ne recharge pas si même salarié et même mois
+  const cacheKey = 'cal_' + currentCalSalarie + '_' + currentCalMonthOffset;
+  if (CACHE[cacheKey]) {
+    renderCalendrier(CACHE[cacheKey].weeksData, month);
+    return;
+  }
+
+  el.innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Chargement du calendrier...</div></div>';
 
   const firstDay = new Date(year, month, 1);
   const lastDay  = new Date(year, month + 1, 0);
@@ -1121,6 +1150,8 @@ async function loadCalendrier() {
   }
 
   if (myToken !== calLoadToken) return; // une navigation plus récente a eu lieu
+  // Mettre en cache
+  CACHE[cacheKey] = { weeksData, month };
   renderCalendrier(weeksData, month);
 }
 
@@ -1252,7 +1283,7 @@ function renderCalCell(j, month) {
 }
 
 // ── CONFIG ────────────────────────────────────────────────────
-let API_URL = 'https://script.google.com/macros/s/AKfycbzSGGxnbuB8PdFHoJHe0NLfw_nGEJwED_oRgiKpLBFdI6DewDTx4JQjbUDfG0B2yDFaQQ/exec';
+let API_URL = 'https://script.google.com/macros/s/AKfycbzSUKAdxXRK1LLH9CUhMnJxbham4Qwei2nef4w93-10JoHRRKLvDTzCbL2vCHVEPMbyAQ/exec';
 const CACHE = {};
 let currentSalarie = 'ANATOLE';
 let currentRecapSal = 'ANATOLE';
@@ -1405,22 +1436,20 @@ async function loadSolde() {
 
   for (const s of data.salaries) {
     const nomKey = s.nom.trim().toUpperCase();
-    const solData = await apiGet({ action: 'solidarite', salarie: nomKey });
+    const solData = s.solidarite || { found: false };
     let solHtml = '';
-    if (solData && solData.ok) {
-      if (solData.found) {
-        solHtml = `<div style="margin-top:8px;background:rgba(21,101,192,.08);border-radius:8px;padding:8px 10px;
-                    display:flex;align-items:center;gap:8px">
-          <span style="font-size:15px">🤝</span>
-          <div style="font-size:12px;color:var(--text)">Journée de solidarité : <strong style="color:var(--blue)">${solData.date}</strong></div>
-        </div>`;
-      } else {
-        solHtml = `<div style="margin-top:8px;background:var(--amber-l);border-radius:8px;padding:8px 10px;
-                    display:flex;align-items:center;gap:8px">
-          <span style="font-size:15px">⚠️</span>
-          <div style="font-size:12px;color:var(--amber);font-weight:600">Journée de solidarité non effectuée</div>
-        </div>`;
-      }
+    if (solData.found) {
+      solHtml = `<div style="margin-top:8px;background:rgba(21,101,192,.08);border-radius:8px;padding:8px 10px;
+                  display:flex;align-items:center;gap:8px">
+        <span style="font-size:15px">🤝</span>
+        <div style="font-size:12px;color:var(--text)">Journée de solidarité : <strong style="color:var(--blue)">${solData.date}</strong></div>
+      </div>`;
+    } else {
+      solHtml = `<div style="margin-top:8px;background:var(--amber-l);border-radius:8px;padding:8px 10px;
+                  display:flex;align-items:center;gap:8px">
+        <span style="font-size:15px">⚠️</span>
+        <div style="font-size:12px;color:var(--amber);font-weight:600">Journée de solidarité non effectuée</div>
+      </div>`;
     }
 
     html += `
