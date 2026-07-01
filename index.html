@@ -364,8 +364,25 @@ window.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
 
-      <!-- Heure de fin uniquement (les autres sont déjà dans Sheets) -->
+      <!-- Heures habituelles (lecture seule) + Heure de fin modifiable -->
       <div id="heures-form" style="display:none">
+        <div style="background:var(--gray-l);border-radius:10px;padding:12px;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Horaire habituel</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
+            <div>
+              <div style="font-size:10px;color:var(--text2)">Arrivée</div>
+              <div id="f-arrivee-display" style="font-size:15px;font-weight:700;color:var(--text)">8:00</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text2)">Pause midi</div>
+              <div id="f-pause-display" style="font-size:15px;font-weight:700;color:var(--text)">12:00</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text2)">Reprise</div>
+              <div id="f-reprise-display" style="font-size:15px;font-weight:700;color:var(--text)">13:00</div>
+            </div>
+          </div>
+        </div>
         <div class="form-group">
           <label class="form-label">🕐 Heure de fin de journée</label>
           <input class="form-input" type="time" id="f-fin" value="16:00" style="font-size:22px;padding:14px;text-align:center;font-weight:700">
@@ -1252,7 +1269,7 @@ function renderCalCell(j, month) {
 }
 
 // ── CONFIG ────────────────────────────────────────────────────
-let API_URL = 'https://script.google.com/macros/s/AKfycbzS_OZX1NDIXamWKBh9AlRLUNh1Pxi4TwebiOrwWIGeQ907d3YjWaW6W_39jZwNCGcEsg/exec';
+let API_URL = 'https://script.google.com/macros/s/AKfycbyODAsrYPG8qN2OyCl6wGjVbmqVXH5htnp5pzNyo0peqATp3BsKBTtQ4mVPGrL4CfQtMg/exec';
 const CACHE = {};
 let currentSalarie = 'ANATOLE';
 let currentRecapSal = 'ANATOLE';
